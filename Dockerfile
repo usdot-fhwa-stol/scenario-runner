@@ -42,5 +42,6 @@ RUN ./install_carma_scenario_runner --prefix /app $CARLA_VERSION
 
 WORKDIR /app/scenario_runner
 ENV PYTHONPATH "/app/carla/agents:/app/carla:/app/carla/dist/carla-$CARLA_VERSION-py3.7-linux-x86_64.egg"
-
+# Set scenario runner root for carla recorder
+ENV SCENARIO_RUNNER_ROOT  "/app/scenario_runner/"
 ENTRYPOINT ["python3", "scenario_runner.py"]
