@@ -31,7 +31,7 @@ RUN apt update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp
-RUN wget -qO- "https://carla-releases.s3.eu-west-3.amazonaws.com/Linux/CARLA_$CARLA_VERSION.tar.gz" \
+RUN wget -qO- "https://carla-releases.s3.us-east-005.backblazeb2.com/Linux/CARLA_$CARLA_VERSION.tar.gz" \
         | tar -xz PythonAPI/carla \
     && mkdir -p /app \
     && mv PythonAPI/carla /app \
