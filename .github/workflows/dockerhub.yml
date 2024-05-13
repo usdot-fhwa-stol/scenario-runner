@@ -1,10 +1,13 @@
 name: Docker Hub build
+
 on:
   push:
     branches:
       - "develop"
       - "master"
       - "release/*"
+    tags:
+      - "carma-system-*"
 jobs:
   dockerhub:
     uses: usdot-fhwa-stol/actions/.github/workflows/dockerhub.yml@main
