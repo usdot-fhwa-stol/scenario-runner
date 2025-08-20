@@ -14,7 +14,8 @@ Replace `YOUR_PERSONAL_ACCESS_TOKEN` with a token that has `workflow` scope, and
 curl -X POST \
   -H "Authorization: Bearer YOUR_PERSONAL_ACCESS_TOKEN" \
   -H "Accept: application/vnd.github+json" \
-  https://api.github.com/repos/usdot-fhwa-stol/carma-platform/actions/workflows/dockerhub.yml/dispatches \
+  https://api.github.com/repos/usdot-fhwa-stol/scenario-runner/actions/workflows/dockerhub.yml/dispatches \
   -d '{
     "ref": "develop"
+
   }'
