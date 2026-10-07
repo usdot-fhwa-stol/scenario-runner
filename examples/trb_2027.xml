@@ -17,7 +17,7 @@ limitations under the License.
 -->
 
 <scenarios>
-    <scenario name="Trb2027_1" type="Trb2027" town="Town10">
+    <scenario name="Trb2027_1" type="Trb2027" town="Town10HD_Opt">
         <!-- An external entity (CARMA Platform / cdasim) spawns the ego vehicle -->
         <!--ego_vehicle x="0.0" y="0.0" z="0.2" model="vehicle.audi.a2" rolename="carma_1"/-->
 
