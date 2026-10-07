@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:18.04
+FROM ubuntu:22.04
 
-ARG CARLA_VERSION=0.9.10
+ARG CARLA_VERSION=0.10.0
 
 RUN apt update \
     && DEBIAN_FRONTEND=noninteractive apt install --no-install-recommends --yes --quiet \
@@ -24,8 +24,8 @@ RUN apt update \
         build-essential \
         wget \
         git \
-        python3.7 \
-        python3.7-dev \
+        python3.10 \
+        python3.10-dev \
         python3-pip \
         libxerces-c-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -41,7 +41,7 @@ COPY . .
 RUN ./install_carma_scenario_runner --prefix /app $CARLA_VERSION
 
 WORKDIR /app/scenario_runner
-ENV PYTHONPATH "/app/carla/agents:/app/carla:/app/carla/dist/carla-$CARLA_VERSION-py3.7-linux-x86_64.egg"
+ENV PYTHONPATH "/app/carla/agents:/app/carla:/app/carla/dist/carla-$CARLA_VERSION-cp310-cp310-linux_x86_64.whl"
 # Set scenario runner root for carla recorder
 ENV SCENARIO_RUNNER_ROOT  "/app/scenario_runner/"
 ENTRYPOINT ["python3", "scenario_runner.py"]
