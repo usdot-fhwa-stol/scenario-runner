@@ -15,6 +15,8 @@
 FROM ubuntu:22.04
 
 ARG CARLA_VERSION=0.10.0
+# scenario_runner has no 0.10.0 tag; its UE5 (CARLA 0.10.x) support lives on ue5-master
+ARG SCENARIO_RUNNER_VERSION=ue5-master
 
 RUN apt update \
     && DEBIAN_FRONTEND=noninteractive apt install --no-install-recommends --yes --quiet \
@@ -31,17 +33,18 @@ RUN apt update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp
-RUN wget -qO- "https://carla-releases.s3.us-east-005.backblazeb2.com/Linux/CARLA_$CARLA_VERSION.tar.gz" \
-        | tar -xz PythonAPI/carla \
+RUN wget -qO- "https://carla-releases.s3.us-east-005.backblazeb2.com/Linux/Carla-$CARLA_VERSION-Linux-Shipping.tar.gz" \
+        | tar -xz --strip-components=1 "Carla-$CARLA_VERSION-Linux-Shipping/PythonAPI/carla" \
     && mkdir -p /app \
     && mv PythonAPI/carla /app \
     && rm -rf *
 
 COPY . .
-RUN ./install_carma_scenario_runner --prefix /app $CARLA_VERSION
+RUN ./install_carma_scenario_runner --prefix /app $SCENARIO_RUNNER_VERSION \
+    && python3 -m pip install --no-cache-dir /app/carla/dist/carla-*-cp310-*.whl
 
 WORKDIR /app/scenario_runner
-ENV PYTHONPATH "/app/carla/agents:/app/carla:/app/carla/dist/carla-$CARLA_VERSION-cp310-cp310-linux_x86_64.whl"
+ENV PYTHONPATH "/app/carla/agents:/app/carla"
 # Set scenario runner root for carla recorder
 ENV SCENARIO_RUNNER_ROOT  "/app/scenario_runner/"
 ENTRYPOINT ["python3", "scenario_runner.py"]
