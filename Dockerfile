@@ -33,8 +33,7 @@ RUN apt update \
 
 WORKDIR /tmp
 COPY . .
-# Only the CARLA client Python API wheel is needed -- the agents package
-# (GlobalRoutePlanner etc.) isn't, since none of our scenarios use it.
+# Only the CARLA client Python API wheel is needed
 RUN python3 -m pip install --no-cache-dir "wheels/carla-$CARLA_VERSION-cp310-cp310-linux_x86_64.whl" \
     && ./install_carma_scenario_runner --prefix /app $SCENARIO_RUNNER_VERSION \
     && rm -rf /tmp/*
