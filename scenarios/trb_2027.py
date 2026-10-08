@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright 2026 Leidos
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,116 +12,93 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""
+Spawns a static fire truck prop in Town10 for the TRB2027 Cooperative
+Perception demo.
 
-import py_trees
+Deliberately not built on ScenarioRunner's BasicScenario framework. That
+machinery (behavior trees, timeouts, test criteria) is for actively-driven
+scenario actors; for a static, physics-free prop with no behavior of its
+own it was unnecessary complexity, and its timeout/Idle handling interacted
+badly with this script potentially starting before the rest of the
+simulation stack was ready, causing the fire truck to be torn down shortly
+after spawning. This connects to CARLA directly, spawns the fire truck
+once, and stays alive -- no scenario lifecycle to manage.
+"""
 
-from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
-from srunner.scenariomanager.scenarioatomics.atomic_behaviors import Idle
-from srunner.scenarios.basic_scenario import BasicScenario
-from srunner.scenarioconfigs.scenario_configuration import ScenarioConfiguration
+import time
+
+import carla
+
+CARLA_HOST = "localhost"
+CARLA_PORT = 2000
+CONNECT_RETRY_INTERVAL_SECONDS = 2.0
+CONNECT_TIMEOUT_SECONDS = 10.0
+
+TOWN_NAME = "Town10HD_Opt"
+FIRE_TRUCK_BLUEPRINT = "vehicle.firetruck.actors"
+FIRE_TRUCK_ROLE_NAME = "fire_truck"
+
+# Coordinates obtained by manually driving to the yellow dot location in
+# Town10 and reading off the CARLA transform.
+FIRE_TRUCK_LOCATION = carla.Location(x=110.10, y=47.32, z=0.03)
+FIRE_TRUCK_ROTATION = carla.Rotation(yaw=270.0)
 
 
-class Trb2027(BasicScenario):
-    def __init__(
-        self,
-        world,
-        ego_vehicles,
-        config: ScenarioConfiguration,
-        randomize: bool = False,
-        debug_mode: bool = False,
-        criteria_enable: bool = True,
-        timeout=60,
-    ) -> None:
-        """
-        :param world: CARLA world in which the scenario is running
-        :param list[carla.Vehicle] ego_vehicles: CARLA vehicle objects created based on scenario XML configuration
-        :param ScenarioConfiguration config: Specifications from scenario XML configuration
-        :param bool randomize:
-        :param bool debug_mode:
-        :param bool criteria_enable:
-        :param float timeout: Threshold (in seconds) after which test automatically fails
+def connect_to_carla() -> carla.Client:
+    """
+    Connect to the CARLA server, retrying until it's actually ready rather
+    than failing immediately. This script can start running before the
+    rest of the simulation stack (cdasim, CARLA itself) has finished
+    coming up.
+    """
+    while True:
+        try:
+            client = carla.Client(CARLA_HOST, CARLA_PORT)
+            client.set_timeout(CONNECT_TIMEOUT_SECONDS)
+            client.get_world()
+            return client
+        except RuntimeError as exc:
+            print(f"Waiting for CARLA server ({exc}), retrying...")
+            time.sleep(CONNECT_RETRY_INTERVAL_SECONDS)
 
-        :return: None
-        :rtype: None
-        """
-        # Must be defined before super() call because BasicScenario
-        # references is in its __init__() function.
-        self.timeout = timeout
 
-        super(Trb2027, self).__init__(
-            "Trb2027",
-            ego_vehicles,
-            config,
-            world,
-            debug_mode=debug_mode,
-            criteria_enable=criteria_enable,
-        )
+def main() -> None:
+    client = connect_to_carla()
+    world = client.get_world()
 
-        self.world_map = CarlaDataProvider.get_map()
-        self.other_actors_dict = {}
+    if TOWN_NAME not in world.get_map().name:
+        print(f"Switching server map to {TOWN_NAME}...")
+        world = client.load_world(TOWN_NAME)
 
-    def _initialize_actors(self, config: ScenarioConfiguration) -> None:
-        """
-        Note: this function overrides the one in BasicScenario (parent
-        class), so this override is responsible for adding the actors
-        defined in the scenario XML configuration.
+    blueprint_library = world.get_blueprint_library()
+    fire_truck_bp = blueprint_library.find(FIRE_TRUCK_BLUEPRINT)
+    fire_truck_bp.set_attribute("role_name", FIRE_TRUCK_ROLE_NAME)
 
-        :param ScenarioConfiguration config: Specifications from
-        scenario XML configuration
-        :return: None
-        """
-        actors = CarlaDataProvider.request_new_actors(config.other_actors)
+    spawn_transform = carla.Transform(FIRE_TRUCK_LOCATION, FIRE_TRUCK_ROTATION)
+    fire_truck = world.spawn_actor(fire_truck_bp, spawn_transform)
 
-        self.other_actors_dict = {
-            actor_config.rolename: actor
-            for actor_config, actor in zip(config.other_actors, actors)
-        }
+    # Static prop -- no physics simulation, so it can't be knocked over,
+    # fall through the ground, or otherwise drift from its placed position.
+    fire_truck.set_simulate_physics(False)
 
-    def _setup_scenario_trigger(self, _: ScenarioConfiguration) -> None:
-        """
-        Set up the scenario start trigger
+    print(
+        f"Fire truck (id={fire_truck.id}) spawned and held static at "
+        f"{FIRE_TRUCK_LOCATION}."
+    )
 
-        Note: this function overrides the abstract one in the
-        BasicScenario parent class. The base class's implementation adds
-        a trigger that prevents the scenario from starting until the
-        ego vehicle drives some distance. We don't want that trigger
-        for this scenario because the fire truck is a static prop, not
-        a driven actor. Follow this link for more information:
-        https://carla-scenariorunner.readthedocs.io/en/latest/creating_new_scenario/
-
-        :return: None
-        """
+    # Nothing else to do -- the fire truck has no behavior. Stay alive so
+    # the process (and the actor it owns) persists. Lifecycle across demo
+    # loop iterations is controlled externally by restarting this
+    # container, not by any timeout here.
+    try:
+        while True:
+            time.sleep(60)
+    except KeyboardInterrupt:
         pass
+    finally:
+        fire_truck.destroy()
 
-    def _create_behavior(self):
-        """
-        Setup the behavior for Trb2027
 
-        Note: this function overrides the abstract one in the
-        BasicScenario parent class.
-
-        The fire truck is spawned by _initialize_actors() above (driven
-        by the <other_actor> entry in the paired scenario XML) and has no
-        active behavior of its own for this demo -- it just sits in place
-        as a static prop for the Cooperative Perception detection. This
-        root behavior only keeps the scenario alive.
-
-        :return: Behavior tree root
-        """
-        root = py_trees.composites.Sequence(name="root_sequence")
-        root.add_child(Idle(1, name="fire_truck_static"))
-
-        return root
-
-    def _create_test_criteria(self) -> list:
-        """
-        Setup the evaluation criteria for Trb2027
-
-        Note: this function overrides the one in BasicScenario (parent class).
-
-        :return: List of test criteria
-        """
-        return []
-
-    def __del__(self):
-        self.remove_all_actors()
+if __name__ == "__main__":
+    main()

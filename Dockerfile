@@ -33,21 +33,14 @@ RUN apt update \
 
 WORKDIR /tmp
 COPY . .
-# Only the CARLA client is needed: install the Python API wheel shipped in this
-# repo, plus the pure-Python agents package (not included in the wheel) taken
-# from the matching CARLA release tag.
-RUN git clone --quiet --depth 1 --filter=blob:none --sparse \
-        -c advice.detachedHead=false --branch "$CARLA_VERSION" \
-        https://github.com/carla-simulator/carla.git carla-src \
-    && git -C carla-src sparse-checkout set PythonAPI/carla/agents \
-    && mkdir -p /app/carla \
-    && mv carla-src/PythonAPI/carla/agents /app/carla \
-    && python3 -m pip install --no-cache-dir "wheels/carla-$CARLA_VERSION-cp310-cp310-linux_x86_64.whl" \
+# Only the CARLA client Python API wheel is needed -- the agents package
+# (GlobalRoutePlanner etc.) isn't, since none of our scenarios use it.
+RUN python3 -m pip install --no-cache-dir "wheels/carla-$CARLA_VERSION-cp310-cp310-linux_x86_64.whl" \
     && ./install_carma_scenario_runner --prefix /app $SCENARIO_RUNNER_VERSION \
     && rm -rf /tmp/*
 
 WORKDIR /app/scenario_runner
-ENV PYTHONPATH "/app/carla/agents:/app/carla"
+ENV PYTHONPATH "/app/carla"
 # Set scenario runner root for carla recorder
 ENV SCENARIO_RUNNER_ROOT  "/app/scenario_runner/"
 ENTRYPOINT ["python3", "scenario_runner.py"]
