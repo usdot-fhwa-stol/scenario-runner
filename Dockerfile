@@ -35,11 +35,11 @@ WORKDIR /tmp
 COPY . .
 # Only the CARLA client Python API wheel is needed
 RUN python3 -m pip install --no-cache-dir "wheels/carla-$CARLA_VERSION-cp310-cp310-linux_x86_64.whl" \
-    && ./install_carma_scenario_runner --prefix /app $SCENARIO_RUNNER_VERSION \
+    # && ./install_carma_scenario_runner --prefix /app $SCENARIO_RUNNER_VERSION \
     && rm -rf /tmp/*
 
 WORKDIR /app/scenario_runner
 ENV PYTHONPATH "/app/carla"
 # Set scenario runner root for carla recorder
-ENV SCENARIO_RUNNER_ROOT  "/app/scenario_runner/"
-ENTRYPOINT ["python3", "scenario_runner.py"]
+# ENV SCENARIO_RUNNER_ROOT  "/app/scenario_runner/"
+# ENTRYPOINT ["python3", "scenario_runner.py"]
