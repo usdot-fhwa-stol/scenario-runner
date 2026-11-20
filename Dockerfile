@@ -31,10 +31,28 @@ RUN apt update \
 
 WORKDIR /tmp
 COPY wheels/ wheels/
-# Only the CARLA client Python API wheel is needed
 RUN python3 -m pip install --no-cache-dir "wheels/carla-$CARLA_VERSION-cp310-cp310-linux_x86_64.whl" \
     && rm -rf /tmp/wheels
 
-WORKDIR /app
-COPY scenarios/trb_2027.py /app/trb_2027.py
-ENTRYPOINT ["python3", "-u", "/app/trb_2027.py"]
+# ScenarioRunner depends on the CARLA "agents" package, which ships with the
+# CARLA PythonAPI sources but is not part of the client wheel
+RUN git clone --quiet --depth 1 --branch "$CARLA_VERSION" --filter=blob:none --sparse \
+        https://github.com/carla-simulator/carla.git carla \
+    && git -C carla sparse-checkout set PythonAPI/carla/agents \
+    && mkdir -p /app/carla \
+    && mv carla/PythonAPI/carla/agents /app/carla/ \
+    && rm -rf carla
+
+COPY . .
+RUN ./install_carma_scenario_runner --prefix /app "v$CARLA_VERSION" \
+    && rm -rf /tmp/*
+
+WORKDIR /app/scenario_runner
+ENV PYTHONPATH="/app/carla"
+# Set scenario runner root for carla recorder
+ENV SCENARIO_RUNNER_ROOT="/app/scenario_runner/"
+
+# Generic ScenarioRunner is the default entrypoint. To run the standalone
+# TRB 2027 fire truck scenario instead, override it:
+#   docker run --entrypoint python3 <image> -u srunner/scenarios/trb_2027.py
+ENTRYPOINT ["python3", "scenario_runner.py"]

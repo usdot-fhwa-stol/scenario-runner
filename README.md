@@ -62,9 +62,18 @@ After building the image, you can run ScenarioRunner as shown in the below
 example:
 
 ```shell
-$ docker run --rm -it usdotfhwastol/carma-scenario-runner:0.9.10 \
-    --scenario FollowLeadingVehicle_1 --reloadWorld
+$ docker run --rm -it usdotfhwastol/carma-scenario-runner:0.10.0 \
+    --scenario MyScenario_1 --reloadWorld
 ```
 
 The container automatically invokes the `scenario_runner.py` script, so you
 need only to specify the desired scenario.
+
+The TRB 2027 scenario (`scenarios/trb_2027.py`) is a standalone script that
+spawns a static fire truck in Town10 and does not use ScenarioRunner. Override
+the entrypoint to run it:
+
+```shell
+$ docker run --rm -it --network host --entrypoint python3 \
+    usdotfhwastol/carma-scenario-runner:0.10.0 -u srunner/scenarios/trb_2027.py
+```
