@@ -1,4 +1,4 @@
-# Copyright 2023 Leidos
+# Copyright 2026 Leidos
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:18.04
+FROM ubuntu:22.04
 
-ARG CARLA_VERSION=0.9.10
+ARG CARLA_VERSION=0.10.0
 
 RUN apt update \
     && DEBIAN_FRONTEND=noninteractive apt install --no-install-recommends --yes --quiet \
@@ -22,26 +22,37 @@ RUN apt update \
         libtiff5 \
         libjpeg8 \
         build-essential \
-        wget \
         git \
-        python3.7 \
-        python3.7-dev \
+        python3.10 \
+        python3.10-dev \
         python3-pip \
         libxerces-c-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp
-RUN wget -qO- "https://carla-releases.s3.us-east-005.backblazeb2.com/Linux/CARLA_$CARLA_VERSION.tar.gz" \
-        | tar -xz PythonAPI/carla \
-    && mkdir -p /app \
-    && mv PythonAPI/carla /app \
-    && rm -rf *
+COPY wheels/ wheels/
+RUN python3 -m pip install --no-cache-dir "wheels/carla-$CARLA_VERSION-cp310-cp310-linux_x86_64.whl" \
+    && rm -rf /tmp/wheels
+
+# ScenarioRunner depends on the CARLA "agents" package, which ships with the
+# CARLA PythonAPI sources but is not part of the client wheel
+RUN git clone --quiet --depth 1 --branch "$CARLA_VERSION" --filter=blob:none --sparse \
+        https://github.com/carla-simulator/carla.git carla \
+    && git -C carla sparse-checkout set PythonAPI/carla/agents \
+    && mkdir -p /app/carla \
+    && mv carla/PythonAPI/carla/agents /app/carla/ \
+    && rm -rf carla
 
 COPY . .
-RUN ./install_carma_scenario_runner --prefix /app $CARLA_VERSION
+RUN ./install_carma_scenario_runner --prefix /app "v$CARLA_VERSION" \
+    && rm -rf /tmp/*
 
 WORKDIR /app/scenario_runner
-ENV PYTHONPATH "/app/carla/agents:/app/carla:/app/carla/dist/carla-$CARLA_VERSION-py3.7-linux-x86_64.egg"
+ENV PYTHONPATH="/app/carla"
 # Set scenario runner root for carla recorder
-ENV SCENARIO_RUNNER_ROOT  "/app/scenario_runner/"
+ENV SCENARIO_RUNNER_ROOT="/app/scenario_runner/"
+
+# Generic ScenarioRunner is the default entrypoint. To run the standalone
+# TRB 2027 fire truck scenario instead, override it:
+#   docker run --entrypoint python3 <image> -u srunner/scenarios/trb_2027.py
 ENTRYPOINT ["python3", "scenario_runner.py"]
